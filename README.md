@@ -63,11 +63,11 @@ def predire_categorie(image) -> dict:  # image = objet PIL
 
 ## Equipe et roles
 
-| Personne     | Role                | Livrables                                   |
-| :----------- | :------------------ | :------------------------------------------ |
-| Denis        | IA + Frontend (Lead)| model/train.py, predict.py, .h5, app/main.py|
-| Coequipier B | Scraping / Backend  | scraping/jumia.py                           |
-| Coequipier C | DevOps / Integration| Dockerfile, docker-compose.yml, requirements|
+| Personne              | Role                 | Livrables                                    |
+| :-------------------- | :------------------- | :------------------------------------------- |
+| ATOUKOUVI Komi Denis  | IA + Frontend (Lead) | model/train.py, predict.py, .h5, app/main.py |
+| ATEBA Aristide        | Scraping / Backend   | scraping/jumia.py                            |
+| FOGAING Franck Noel   | DevOps / Integration | Dockerfile, docker-compose.yml, requirements |
 
 ## Workflow Git
 
