@@ -2,5 +2,7 @@
 services:
   ecosort:
     build: .
+    container_name: ecosort_container
     ports:
       - "8501:8501"
+    restart: unless-stopped

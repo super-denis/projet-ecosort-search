@@ -1,0 +1,47 @@
+# ==================================================
+# EcoSort-Search - .dockerignore
+# Evite de copier des fichiers inutiles/volumineux
+# dans l'image Docker via "COPY . ."
+# ==================================================
+
+# --- Dataset Kaggle (jamais dans l'image) ---
+dataset/
+datasets/
+garbage_classification/
+garbage-classification/
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# --- Environnements virtuels Python ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Cache & bytecode Python ---
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.egg-info/
+.ipynb_checkpoints/
+
+# --- Git & documentation ---
+.git/
+.gitignore
+.github/
+README.md
+*.md
+
+# --- IDE / systeme ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Divers ---
+*.log
+.env
+.pytest_cache/
