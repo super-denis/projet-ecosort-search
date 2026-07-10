@@ -1,0 +1,25 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# === Environnements virtuels ===
+.venv/
+venv/
+env/
+
+# === Dataset Kaggle (NE JAMAIS pousser) ===
+dataset/
+*.zip
+*.tar.gz
+
+# === Fichiers systeme / editeur ===
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# === Divers ===
+*.log
+.env

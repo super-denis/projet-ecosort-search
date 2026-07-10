@@ -1,0 +1,6 @@
+# Responsable : Coequipier C
+services:
+  ecosort:
+    build: .
+    ports:
+      - "8501:8501"
