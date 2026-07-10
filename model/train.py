@@ -1,15 +1,20 @@
 """
-Entrainement du modele de classification des dechets (Transfer Learning).
-Responsable : Denis (IA)
+Entrainement du modele de classification des dechets (Par Transfer Learning).
 
-Dataset : Garbage Classification (Kaggle) place dans dataset/
-    dataset/
-        cardboard/  glass/  metal/  paper/  plastic/  trash/
+Strategie :
+  Phase 1 : base MobileNetV2
+  Phase 2 : fine-tuning, on dégèle les dernieres couches avec un petit LR.
+  + class weights pour compenser le desequilibre des classes.
 
-Sortie : model/modele_eco_sort.h5
-Lancer : python model/train.py
+Dataset : Garbage Classification (Kaggle, cchangcs) place dans dataset/
+    dataset/{cardboard, glass, metal, paper, plastic, trash}/
+
+Sorties : model/modele_eco_sort.h5  et  model/class_names.json
+Lancer  : python model/train.py
 """
 
+import json
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
@@ -17,10 +22,12 @@ from tensorflow.keras import layers, models
 
 IMG_SIZE = (224, 224)
 BATCH = 32
-EPOCHS = 15
+EPOCHS_PHASE1 = 12
+EPOCHS_PHASE2 = 8
 DATASET_DIR = "dataset"
+AUTOTUNE = tf.data.AUTOTUNE
 
-# --- Chargement des donnees ---
+# --- 1. Chargement des donnees ---
 train_ds = tf.keras.utils.image_dataset_from_directory(
     DATASET_DIR, validation_split=0.2, subset="training", seed=123,
     image_size=IMG_SIZE, batch_size=BATCH,
@@ -31,35 +38,69 @@ val_ds = tf.keras.utils.image_dataset_from_directory(
 )
 
 CLASS_NAMES = train_ds.class_names
-print("Classes (ordre a reporter dans predict.py) :", CLASS_NAMES)
+print("Classes :", CLASS_NAMES)
 
-# --- Augmentation + preprocessing ---
+# --- 2. Class weights (compense le desequilibre : trash << paper) ---
+counts = np.zeros(len(CLASS_NAMES))
+for _, labels in train_ds.unbatch():
+    counts[int(labels.numpy())] += 1
+total = counts.sum()
+class_weight = {i: total / (len(CLASS_NAMES) * c) for i, c in enumerate(counts)}
+print("Class weights :", class_weight)
+
+# --- 3. Perf : cache + prefetch ---
+train_ds = train_ds.cache().prefetch(AUTOTUNE)
+val_ds = val_ds.cache().prefetch(AUTOTUNE)
+
+# --- 4. Augmentation ---
 data_aug = tf.keras.Sequential([
     layers.RandomFlip("horizontal"),
-    layers.RandomRotation(0.1),
-    layers.RandomZoom(0.1),
+    layers.RandomRotation(0.15),
+    layers.RandomZoom(0.15),
+    layers.RandomContrast(0.1),
 ])
 
-# --- Modele : MobileNetV2 gele + tete de classification ---
+# --- 5. Modele ---
 base = MobileNetV2(input_shape=IMG_SIZE + (3,), include_top=False, weights="imagenet")
-base.trainable = False
+base.trainable = False  # Phase 1 : base gelee
 
 inputs = tf.keras.Input(shape=IMG_SIZE + (3,))
 x = data_aug(inputs)
 x = preprocess_input(x)
 x = base(x, training=False)
 x = layers.GlobalAveragePooling2D()(x)
-x = layers.Dropout(0.2)(x)
+x = layers.Dropout(0.3)(x)
 outputs = layers.Dense(len(CLASS_NAMES), activation="softmax")(x)
 model = models.Model(inputs, outputs)
 
-model.compile(optimizer="adam",
+model.compile(optimizer=tf.keras.optimizers.Adam(1e-3),
               loss="sparse_categorical_crossentropy",
               metrics=["accuracy"])
 
-# --- Entrainement ---
-model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS)
+# --- 6. Phase 1 : entrainement de la tete ---
+print("\n=== PHASE 1 : base gelee ===")
+model.fit(train_ds, validation_data=val_ds,
+          epochs=EPOCHS_PHASE1, class_weight=class_weight)
 
-# --- Sauvegarde ---
+# --- 7. Phase 2 : fine-tuning des dernieres couches ---
+print("\n=== PHASE 2 : fine-tuning ===")
+base.trainable = True
+for layer in base.layers[:-30]:      # on ne degele que les 30 dernieres couches
+    layer.trainable = False
+
+model.compile(optimizer=tf.keras.optimizers.Adam(1e-5),  # LR tres bas
+              loss="sparse_categorical_crossentropy",
+              metrics=["accuracy"])
+model.fit(train_ds, validation_data=val_ds,
+          epochs=EPOCHS_PHASE2, class_weight=class_weight)
+
+# --- 8. Evaluation finale ---
+loss, acc = model.evaluate(val_ds)
+print(f"\nAccuracy validation finale : {acc:.2%}")
+
+# --- 9. Sauvegarde ---
 model.save("model/modele_eco_sort.h5")
+with open("model/class_names.json", "w") as f:
+    json.dump(CLASS_NAMES, f)
 print("Modele sauvegarde -> model/modele_eco_sort.h5")
+print("Classes sauvegardees -> model/class_names.json")

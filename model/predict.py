@@ -6,12 +6,19 @@ Expose la fonction du contrat :
     predire_categorie(image) -> dict
 """
 
+import os
+import json
 from PIL import Image
 import numpy as np
 
 # --- Ordre des classes EXACT tel qu'appris a l'entrainement ---
-# (a verifier avec train_ds.class_names apres l'entrainement)
-CLASSES = ["cardboard", "glass", "metal", "paper", "plastic", "trash"]
+# Lu depuis le fichier genere par train.py (sinon fallback par defaut).
+_CN_PATH = os.path.join(os.path.dirname(__file__), "class_names.json")
+if os.path.exists(_CN_PATH):
+    with open(_CN_PATH) as f:
+        CLASSES = json.load(f)
+else:
+    CLASSES = ["cardboard", "glass", "metal", "paper", "plastic", "trash"]
 
 # --- Mapping classe modele -> poubelle + couleur ---
 MAPPING = {
@@ -65,12 +72,12 @@ def predire_categorie(image) -> dict:
     """
     model = _charger_modele()
 
-    # Pretraitement (doit matcher l'entrainement : 224x224, normalisation)
+    # Pretraitement : 224x224, image brute 0-255.
+    # PAS de normalisation ici : preprocess_input est deja integre DANS le
+    # modele (voir train.py), donc on lui passe l'image brute.
     img = image.convert("RGB").resize((224, 224))
     arr = np.array(img, dtype="float32")
     arr = np.expand_dims(arr, axis=0)
-    # TODO Denis : appliquer le meme preprocessing que train.py
-    #   (ex: tf.keras.applications.mobilenet_v2.preprocess_input)
 
     probas = model.predict(arr, verbose=0)[0]
     idx = int(np.argmax(probas))
