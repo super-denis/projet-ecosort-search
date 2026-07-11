@@ -1,5 +1,6 @@
 """
 Scraping Jumia : recherche de produits a partir d'un mot-cle.
+Responsable : Coequipier B
 
 Expose la fonction du contrat :
     rechercher_produits(mot_cle) -> list[dict]
