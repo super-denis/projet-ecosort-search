@@ -22,8 +22,9 @@ from tensorflow.keras import layers, models
 
 IMG_SIZE = (224, 224)
 BATCH = 32
-EPOCHS_PHASE1 = 12
-EPOCHS_PHASE2 = 8
+EPOCHS_PHASE1 = 25   # plafond ; l'early-stopping coupe avant si ca stagne
+EPOCHS_PHASE2 = 25
+FINE_TUNE_LAYERS = 54  # nb de dernieres couches degelees en phase 2
 DATASET_DIR = "dataset"
 AUTOTUNE = tf.data.AUTOTUNE
 
@@ -54,11 +55,21 @@ val_ds = val_ds.cache().prefetch(AUTOTUNE)
 
 # --- 4. Augmentation ---
 data_aug = tf.keras.Sequential([
-    layers.RandomFlip("horizontal"),
-    layers.RandomRotation(0.15),
-    layers.RandomZoom(0.15),
-    layers.RandomContrast(0.1),
+    layers.RandomFlip("horizontal_and_vertical"),
+    layers.RandomRotation(0.2),
+    layers.RandomZoom(0.2),
+    layers.RandomContrast(0.15),
+    layers.RandomBrightness(0.15),
 ])
+
+# --- Callbacks : garde le meilleur epoch + baisse le LR quand ca stagne ---
+def make_callbacks():
+    return [
+        tf.keras.callbacks.EarlyStopping(
+            monitor="val_accuracy", patience=6, restore_best_weights=True),
+        tf.keras.callbacks.ReduceLROnPlateau(
+            monitor="val_loss", factor=0.5, patience=3, min_lr=1e-7),
+    ]
 
 # --- 5. Modele ---
 base = MobileNetV2(input_shape=IMG_SIZE + (3,), include_top=False, weights="imagenet")
@@ -80,19 +91,21 @@ model.compile(optimizer=tf.keras.optimizers.Adam(1e-3),
 # --- 6. Phase 1 : entrainement de la tete ---
 print("\n=== PHASE 1 : base gelee ===")
 model.fit(train_ds, validation_data=val_ds,
-          epochs=EPOCHS_PHASE1, class_weight=class_weight)
+          epochs=EPOCHS_PHASE1, class_weight=class_weight,
+          callbacks=make_callbacks())
 
 # --- 7. Phase 2 : fine-tuning des dernieres couches ---
 print("\n=== PHASE 2 : fine-tuning ===")
 base.trainable = True
-for layer in base.layers[:-30]:      # on ne degele que les 30 dernieres couches
+for layer in base.layers[:-FINE_TUNE_LAYERS]:  # on degele les dernieres couches
     layer.trainable = False
 
 model.compile(optimizer=tf.keras.optimizers.Adam(1e-5),  # LR tres bas
               loss="sparse_categorical_crossentropy",
               metrics=["accuracy"])
 model.fit(train_ds, validation_data=val_ds,
-          epochs=EPOCHS_PHASE2, class_weight=class_weight)
+          epochs=EPOCHS_PHASE2, class_weight=class_weight,
+          callbacks=make_callbacks())
 
 # --- 8. Evaluation finale ---
 loss, acc = model.evaluate(val_ds)
