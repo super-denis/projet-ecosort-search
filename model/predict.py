@@ -7,6 +7,7 @@ Expose la fonction du contrat :
 """
 
 import os
+import re
 import json
 from PIL import Image
 import numpy as np
@@ -31,10 +32,26 @@ MAPPING = {
 }
 
 # --- D3E : detecte par mots-cles sur le TITRE (pas par l'image) ---
+# 1) Sous-chaines sures (marques + appareils electroniques courants)
 MOTS_CLES_D3E = [
-    "smartphone", "telephone", "phone", "ecouteur", "casque", "chargeur",
-    "batterie", "pile", "montre", "mixeur", "ordinateur", "laptop", "tablette",
-    "camera", "tv", "television", "console", "manette", "cable", "usb",
+    # appareils
+    "smartphone", "telephone", "phone", "portable", "ecouteur", "casque",
+    "chargeur", "charger", "batterie", "power bank", "powerbank", "pile",
+    "smartwatch", "montre connectee", "mixeur", "blender", "ordinateur",
+    "laptop", "tablette", "tablet", "camera", "television", "televiseur",
+    "console", "manette", "clavier", "souris", "imprimante", "ventilateur",
+    "refrigerateur", "climatiseur", "radio", "haut-parleur", "speaker",
+    "enceinte", "ampoule", "projecteur", "decodeur",
+    # marques repandues en Cote d'Ivoire
+    "tecno", "infinix", "itel", "xiaomi", "redmi", "samsung", "galaxy",
+    "iphone", "apple", "oppo", "huawei", "nokia", "realme", "vivo", "honor",
+]
+
+# 2) Motifs "mot entier" (specs) - evite les faux positifs type "caramel"
+PATTERNS_D3E = [
+    r"\bmah\b", r"\brom\b", r"\bram\b", r"\bsim\b", r"\bmpx\b", r"\bmp\b",
+    r"\bgo\b", r"\bgb\b", r"\bused\b", r"\busb\b", r"\bled\b", r"\btv\b",
+    r"\bpc\b", r"\b\dg\b",
 ]
 
 COULEUR_D3E = "#616161"
@@ -51,9 +68,11 @@ def _charger_modele():
 
 
 def est_d3e(titre: str) -> bool:
-    """True si le titre du produit contient un mot-cle electronique."""
+    """True si le titre du produit evoque un appareil electrique/electronique."""
     t = titre.lower()
-    return any(mot in t for mot in MOTS_CLES_D3E)
+    if any(mot in t for mot in MOTS_CLES_D3E):
+        return True
+    return any(re.search(p, t) for p in PATTERNS_D3E)
 
 
 def categorie_d3e() -> dict:
