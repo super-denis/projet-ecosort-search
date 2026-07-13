@@ -1,4 +1,4 @@
-# Responsable : Coequipier C
+# Responsable : FOGAING Franck-Noel
 services:
   ecosort:
     build: .
@@ -6,3 +6,5 @@ services:
     ports:
       - "8501:8501"
     restart: unless-stopped
+    mem_limit: 3g
+    mem_reservation: 1g
